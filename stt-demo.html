@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Speech-to-Text (REST API)</title>
+  <style>
+    :root {
+      --bg-primary: #0f172a;
+      --bg-secondary: #1e293b;
+      --bg-card: #334155;
+      --text-primary: #f8fafc;
+      --text-secondary: #94a3b8;
+      --accent: #3b82f6;
+      --accent-hover: #2563eb;
+      --success: #10b981;
+      --border: #334155;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, sans-serif;
+      background-color: var(--bg-primary);
+      color: var(--text-primary);
+      margin: 0;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 600px;
+      padding: 24px;
+      background-color: var(--bg-secondary);
+      border-radius: 16px;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    }
+
+    .header {
+      margin-bottom: 24px;
+      text-align: center;
+    }
+
+    .header h2 {
+      margin: 0;
+      font-weight: 600;
+    }
+
+    .header p {
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+      margin-top: 8px;
+    }
+
+    .section {
+      background: var(--bg-card);
+      padding: 16px;
+      border-radius: 12px;
+      margin-bottom: 16px;
+      border: 1px solid var(--border);
+    }
+
+    .section-title {
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-secondary);
+      margin-bottom: 12px;
+      font-weight: 600;
+    }
+
+    .controls {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+    }
+
+    .btn {
+      padding: 10px 20px;
+      border-radius: 8px;
+      font-weight: 500;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s;
+      font-size: 0.95rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .btn-primary {
+      background-color: var(--accent);
+      color: white;
+      flex: 1;
+    }
+
+    .btn-primary:hover:not(:disabled) {
+      background-color: var(--accent-hover);
+    }
+
+    .btn-danger {
+      background-color: #ef4444;
+      color: white;
+      flex: 1;
+    }
+
+    .btn-danger:hover:not(:disabled) {
+      background-color: #dc2626;
+    }
+
+    .btn-danger.recording {
+      animation: pulse 1.5s infinite;
+    }
+
+    @keyframes pulse {
+      0% {
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4);
+      }
+
+      70% {
+        box-shadow: 0 0 0 6px rgba(239, 68, 68, 0);
+      }
+
+      100% {
+        box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+      }
+    }
+
+    .file-input-wrapper {
+      position: relative;
+      flex: 1;
+    }
+
+    input[type="file"] {
+      width: 100%;
+      padding: 8px;
+      background: var(--bg-primary);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text-primary);
+      font-size: 0.9rem;
+    }
+
+    input[type="file"]::file-selector-button {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      color: var(--text-primary);
+      padding: 4px 12px;
+      margin-right: 12px;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .transcription-box {
+      background: var(--bg-primary);
+      border-radius: 12px;
+      padding: 20px;
+      min-height: 150px;
+      max-height: 400px;
+      overflow-y: auto;
+      border: 1px solid var(--border);
+    }
+
+    .transcription-item {
+      padding: 12px;
+      margin-bottom: 8px;
+      background: var(--bg-secondary);
+      border-radius: 8px;
+      border-left: 3px solid var(--accent);
+    }
+
+    .transcription-meta {
+      font-size: 0.75rem;
+      color: var(--text-secondary);
+      margin-top: 6px;
+      display: flex;
+      gap: 12px;
+    }
+
+    .loader {
+      width: 16px;
+      height: 16px;
+      border: 2px solid #fff;
+      border-bottom-color: transparent;
+      border-radius: 50%;
+      display: inline-block;
+      box-sizing: border-box;
+      animation: rotation 1s linear infinite;
+    }
+
+    @keyframes rotation {
+      0% {
+        transform: rotate(0deg);
+      }
+
+      100% {
+        transform: rotate(360deg);
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <div class="container">
+    <div class="header">
+      <h2>🎙️ Speech-to-Text</h2>
+      <p>File Upload & Recording Mode</p>
+    </div>
+
+    <!-- Section 1: Record -->
+    <div class="section">
+      <div class="section-title">Recorder</div>
+      <div class="controls">
+        <button id="recordBtn" class="btn btn-danger">Start Recording</button>
+        <span id="timer" style="font-family: monospace; color: var(--text-secondary);">00:00</span>
+      </div>
+    </div>
+
+    <!-- Section 2: Upload -->
+    <div class="section">
+      <div class="section-title">Upload File</div>
+      <div class="controls">
+        <input type="file" id="fileInput" accept="audio/*">
+        <button id="uploadBtn" class="btn btn-primary">Transcribe</button>
+      </div>
+    </div>
+
+    <!-- Results -->
+    <div class="section-title">Transcription Results</div>
+    <div id="transcriptionBox" class="transcription-box"></div>
+  </div>
+
+  <script>
+    const recordBtn = document.getElementById('recordBtn');
+    const timerDisplay = document.getElementById('timer');
+    const fileInput = document.getElementById('fileInput');
+    const uploadBtn = document.getElementById('uploadBtn');
+    const transcriptionBox = document.getElementById('transcriptionBox');
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    const OfflineAudioContextClass = window.OfflineAudioContext || window.webkitOfflineAudioContext;
+    const TARGET_SAMPLE_RATE = 16000;
+
+    // State
+    let mediaRecorder = null;
+    let audioChunks = [];
+    let isRecording = false;
+    let startTime = null;
+    let timerInterval = null;
+
+    // --- Recording Logic ---
+    recordBtn.addEventListener('click', async () => {
+      if (!isRecording) {
+        // Start Recording
+        try {
+          const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          mediaRecorder = new MediaRecorder(stream);
+          audioChunks = [];
+
+          mediaRecorder.ondataavailable = (event) => {
+            audioChunks.push(event.data);
+          };
+
+        mediaRecorder.onstop = async () => {
+          // Create Blob from chunks
+          const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+          // Convert to WAV that FastAPI + soundfile can read
+          const wavBlob = await convertBlobToWav(audioBlob);
+          // Send to Server
+          await sendAudioToServer(wavBlob, "recording.wav");
+
+          // Cleanup
+          stream.getTracks().forEach(track => track.stop());
+        };
+
+          mediaRecorder.start();
+          isRecording = true;
+          recordBtn.textContent = 'Stop Recording';
+          recordBtn.classList.add('recording');
+          startTimer();
+
+        } catch (err) {
+          console.error("Mic Error:", err);
+          alert("Cannot access microphone.");
+        }
+      } else {
+        // Stop Recording
+        mediaRecorder.stop();
+        isRecording = false;
+        recordBtn.textContent = 'Start Recording';
+        recordBtn.classList.remove('recording');
+        stopTimer();
+      }
+    });
+
+    // --- Upload Logic ---
+    uploadBtn.addEventListener('click', async () => {
+      const file = fileInput.files[0];
+      if (!file) {
+        alert("Please select a file first.");
+        return;
+      }
+      await sendAudioToServer(file, file.name);
+    });
+
+    // --- Server Interaction ---
+    async function sendAudioToServer(blob, filename) {
+      // Show loading state
+      const loadingId = addLoadingItem();
+
+      try {
+        const formData = new FormData();
+        formData.append('file', blob, filename);
+
+        const response = await fetch('http://127.0.0.1:8000/v1/audio/transcriptions', {
+          method: 'POST',
+          body: formData
+        });
+
+        if (!response.ok) {
+          const err = await response.json();
+          throw new Error(err.detail || "Server error");
+        }
+
+        const result = await response.json(); // { text, language, ... }
+
+        // Remove loading, add result
+        removeLoadingItem(loadingId);
+        addResultItem(result);
+
+      } catch (err) {
+        console.error(err);
+        removeLoadingItem(loadingId);
+        addErrorItem(err.message);
+      }
+    }
+
+    // --- UI Helpers ---
+    function startTimer() {
+      startTime = Date.now();
+      timerInterval = setInterval(() => {
+        const diff = Math.floor((Date.now() - startTime) / 1000);
+        const m = Math.floor(diff / 60).toString().padStart(2, '0');
+        const s = (diff % 60).toString().padStart(2, '0');
+        timerDisplay.textContent = `${m}:${s}`;
+      }, 1000);
+    }
+
+    function stopTimer() {
+      clearInterval(timerInterval);
+      timerDisplay.textContent = "00:00";
+    }
+
+    function addLoadingItem() {
+      const id = 'loading-' + Date.now();
+      const el = document.createElement('div');
+      el.id = id;
+      el.className = 'transcription-item';
+      el.innerHTML = `
+            <div style="display:flex; align-items:center; gap:10px; color:var(--text-secondary)">
+                <span class="loader"></span> Processing audio...
+            </div>
+        `;
+      transcriptionBox.prepend(el);
+      return id;
+    }
+
+    function removeLoadingItem(id) {
+      const el = document.getElementById(id);
+      if (el) el.remove();
+    }
+
+    function addResultItem(data) {
+      const el = document.createElement('div');
+      el.className = 'transcription-item';
+
+      const conf = data.language_probability ? `• Confidence: ${(data.language_probability * 100).toFixed(1)}%` : '';
+
+      el.innerHTML = `
+            <div class="transcription-text">${data.text}</div>
+            <div class="transcription-meta">
+                <span>Detected Language: <strong>${data.language || '?'}</strong></span>
+                <span>${conf}</span>
+            </div>
+        `;
+      transcriptionBox.prepend(el);
+    }
+
+    function addErrorItem(msg) {
+      const el = document.createElement('div');
+      el.className = 'transcription-item';
+      el.style.borderLeftColor = '#ef4444';
+      el.innerHTML = `<div style="color:#ef4444">Error: ${msg}</div>`;
+      transcriptionBox.prepend(el);
+    }
+
+    async function convertBlobToWav(blob) {
+      if (!AudioContextClass || !OfflineAudioContextClass) {
+        throw new Error('This browser does not support AudioContext needed for WAV conversion.');
+      }
+      const arrayBuffer = await blob.arrayBuffer();
+      const audioCtx = new AudioContextClass();
+      const decoded = await audioCtx.decodeAudioData(arrayBuffer);
+      await audioCtx.close();
+      let bufferToEncode = decoded;
+      if (decoded.sampleRate !== TARGET_SAMPLE_RATE) {
+        const offlineCtx = new OfflineAudioContextClass(
+          1,
+          Math.ceil(decoded.duration * TARGET_SAMPLE_RATE),
+          TARGET_SAMPLE_RATE
+        );
+        const source = offlineCtx.createBufferSource();
+        source.buffer = decoded;
+        source.connect(offlineCtx.destination);
+        source.start(0);
+        bufferToEncode = await offlineCtx.startRendering();
+      }
+      const monoSamples = flattenToMono(bufferToEncode);
+      const wavBuffer = encodeWav(monoSamples, TARGET_SAMPLE_RATE);
+      return new Blob([wavBuffer], { type: 'audio/wav' });
+    }
+
+    function flattenToMono(audioBuffer) {
+      const channelCount = audioBuffer.numberOfChannels;
+      const length = audioBuffer.length;
+      if (channelCount === 1) {
+        return audioBuffer.getChannelData(0);
+      }
+      const result = new Float32Array(length);
+      for (let channel = 0; channel < channelCount; channel++) {
+        const channelData = audioBuffer.getChannelData(channel);
+        for (let i = 0; i < length; i++) {
+          result[i] += channelData[i] / channelCount;
+        }
+      }
+      return result;
+    }
+
+    function encodeWav(samples, sampleRate) {
+      const buffer = new ArrayBuffer(44 + samples.length * 2);
+      const view = new DataView(buffer);
+
+      function writeString(offset, str) {
+        for (let i = 0; i < str.length; i++) {
+          view.setUint8(offset + i, str.charCodeAt(i));
+        }
+      }
+
+      const dataSize = samples.length * 2;
+      writeString(0, 'RIFF');
+      view.setUint32(4, 36 + dataSize, true);
+      writeString(8, 'WAVE');
+      writeString(12, 'fmt ');
+      view.setUint32(16, 16, true);
+      view.setUint16(20, 1, true);
+      view.setUint16(22, 1, true);
+      view.setUint32(24, sampleRate, true);
+      view.setUint32(28, sampleRate * 2, true);
+      view.setUint16(32, 2, true);
+      view.setUint16(34, 16, true);
+      writeString(36, 'data');
+      view.setUint32(40, dataSize, true);
+
+      let offset = 44;
+      for (let i = 0; i < samples.length; i++, offset += 2) {
+        let sample = Math.max(-1, Math.min(1, samples[i]));
+        view.setInt16(offset, sample < 0 ? sample * 0x8000 : sample * 0x7fff, true);
+      }
+      return buffer;
+    }
+  </script>
+
+</body>
+
+</html>
