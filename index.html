@@ -320,7 +320,7 @@
         const formData = new FormData();
         formData.append('file', blob, filename);
 
-        const response = await fetch('http://127.0.0.1:8000/v1/audio/transcriptions', {
+        const response = await fetch('fetch("https://mdimassetiaji-api-whisper.hf.space/v1/audio/transcriptions")', {
           method: 'POST',
           body: formData
         });
