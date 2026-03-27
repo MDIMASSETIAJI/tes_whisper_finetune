@@ -324,13 +324,14 @@
       method: 'POST',
       body: formData
     });
+        
+
         if (!response.ok) {
-          const err = await response.json();
-          throw new Error(err.detail || "Server error");
+          const text = await response.text(); // <-- bukan json
+          console.error("RAW ERROR:", text);
+          throw new Error("Server error");
         }
-
-        const result = await response.json(); // { text, language, ... }
-
+         const result = await response.json();
         // Remove loading, add result
         removeLoadingItem(loadingId);
         addResultItem(result);
